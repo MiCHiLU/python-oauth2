@@ -15,7 +15,7 @@ else:
     if mo:
         mverstr = mo.group(1)
     else:
-        print "unable to find version in %s" % (VERSIONFILE,)
+        print("unable to find version in %s" % (VERSIONFILE,))
         raise RuntimeError("if %s.py exists, it must be well-formed" % (VERSIONFILE,))
     AVSRE = r"^auto_build_num *= *['\"]([^'\"]*)['\"]"
     mo = re.search(AVSRE, verstrline, re.M)
@@ -49,7 +49,7 @@ setup(name=PKG,
       author_email="joe@simplegeo.com",
       url="http://github.com/simplegeo/python-oauth2",
       packages = find_packages(),
-      install_requires = ['httplib2'],
+      install_requires = ['httplib2', 'six'],
       license = "MIT License",
       keywords="oauth",
       zip_safe = True,
