@@ -30,20 +30,7 @@ import urlparse
 import hmac
 import binascii
 import httplib2
-
-try:
-    from urlparse import parse_qs
-    parse_qs # placate pyflakes
-except ImportError:
-    # fall back for Python 2.5
-    from cgi import parse_qs
-
-try:
-    from hashlib import sha1
-    sha = sha1
-except ImportError:
-    # hashlib was added in Python 2.5
-    import sha
+import hashlib
 
 import _version
 
@@ -284,7 +271,7 @@ class Token(object):
         if not len(s):
             raise ValueError("Invalid parameter string.")
 
-        params = parse_qs(s, keep_blank_values=False)
+        params = urlparse.parse_qs(s, keep_blank_values=False)
         if not len(params):
             raise ValueError("Invalid parameter string.")
 
@@ -418,7 +405,7 @@ class Request(dict):
         except AttributeError:
             # must be python <2.5
             query = base_url[4]
-        query = parse_qs(query)
+        query = urlparse.parse_qs(query)
         for k, v in self.items():
             query.setdefault(k, []).append(v)
         
@@ -490,7 +477,7 @@ class Request(dict):
             # section 4.1.1 "OAuth Consumers MUST NOT include an
             # oauth_body_hash parameter on requests with form-encoded
             # request bodies."
-            self['oauth_body_hash'] = base64.b64encode(sha(self.body).digest())
+            self['oauth_body_hash'] = base64.b64encode(hashlib.sha1(self.body).digest())
 
         if 'oauth_consumer_key' not in self:
             self['oauth_consumer_key'] = consumer.key
@@ -606,7 +593,7 @@ class Request(dict):
     @staticmethod
     def _split_url_string(param_str):
         """Turn URL string into parameters."""
-        parameters = parse_qs(param_str.encode('utf-8'), keep_blank_values=True)
+        parameters = urlparse.parse_qs(param_str.encode('utf-8'), keep_blank_values=True)
         for k, v in parameters.iteritems():
             parameters[k] = urllib.unquote(v[0])
         return parameters
@@ -651,7 +638,7 @@ class Client(httplib2.Http):
             headers.get('Content-Type') == 'application/x-www-form-urlencoded'
 
         if is_form_encoded and body:
-            parameters = parse_qs(body)
+            parameters = urlparse.parse_qs(body)
         else:
             parameters = None
 
@@ -834,7 +821,7 @@ class SignatureMethod_HMAC_SHA1(SignatureMethod):
         """Builds the base signature string."""
         key, raw = self.signing_base(request, consumer, token)
 
-        hashed = hmac.new(key, raw, sha)
+        hashed = hmac.new(key, raw, hashlib.sha1)
 
         # Calculate the digest base 64.
         return binascii.b2a_base64(hashed.digest())[:-1]
