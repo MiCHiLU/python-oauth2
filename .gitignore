@@ -6,4 +6,7 @@
 *.tmp
 *~
 .DS_Store
+.cache
+.coverage
+htmlcov
 tags

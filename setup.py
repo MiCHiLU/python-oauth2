@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Command
 import os, re
 
 PKG='oauth2'
@@ -25,6 +25,23 @@ else:
         averstr = ''
     verstr = '.'.join([mverstr, averstr])
 
+class PyTest(Command):
+  user_options = []
+  def initialize_options(self):
+    pass
+  def finalize_options(self):
+    pass
+  def run(self):
+    import sys,subprocess
+    errno = subprocess.call([sys.executable, "runtests.py", "tests"])
+    raise SystemExit(errno)
+
+class PyTestWithCov(PyTest):
+  def run(self):
+    import sys,subprocess
+    errno = subprocess.call([sys.executable, "runtests.py", "tests", "--cov-report=html", "--cov=.", "--pdb"])
+    raise SystemExit(errno)
+
 setup(name=PKG,
       version=verstr,
       description="library for OAuth version 1.0",
@@ -37,4 +54,9 @@ setup(name=PKG,
       keywords="oauth",
       zip_safe = True,
       test_suite="tests",
-      tests_require=['coverage', 'mock'])
+      tests_require=['coverage', 'mock'],
+      cmdclass = {
+        "test": PyTest,
+        "cov": PyTestWithCov,
+      },
+     )

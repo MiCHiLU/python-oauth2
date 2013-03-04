@@ -7,4 +7,5 @@ python:
   - pypy
 install:
   - pip install .
+  - pip install -r requirements.test.txt
 script: python setup.py test
