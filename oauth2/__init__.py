@@ -35,6 +35,11 @@ if six.PY3:
   from urllib import parse
 else:
   import urlparse as parse
+  import urllib
+  parse.quote = urllib.quote
+  parse.splithost = urllib.splithost
+  parse.splittype = urllib.splittype
+  parse.urlencode = urllib.urlencode
 
 from . import _version
 
