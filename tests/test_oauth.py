@@ -34,6 +34,9 @@ import urlparse
 from types import ListType
 import mock
 import httplib2
+import re
+
+import pytest
 
 # Fix for python2.5 compatibility
 try:
@@ -260,12 +263,30 @@ class TestFuncs(unittest.TestCase):
         self.failUnlessRaises(TypeError, oauth.to_unicode, '\xae')
         self.failUnlessRaises(TypeError, oauth.to_unicode_optional_iterator, '\xae')
         self.failUnlessRaises(TypeError, oauth.to_unicode_optional_iterator, ['\xae'])
+        self.failUnlessRaises(TypeError, oauth.to_unicode, 0)
 
         self.failUnlessEqual(oauth.to_unicode(':-)'), u':-)')
         self.failUnlessEqual(oauth.to_unicode(u'\u00ae'), u'\u00ae')
         self.failUnlessEqual(oauth.to_unicode('\xc2\xae'), u'\u00ae')
         self.failUnlessEqual(oauth.to_unicode_optional_iterator([':-)']), [u':-)'])
         self.failUnlessEqual(oauth.to_unicode_optional_iterator([u'\u00ae']), [u'\u00ae'])
+
+    def test_to_unicode_if_string(self):
+        self.failUnlessRaises(TypeError, oauth.to_unicode_if_string, '\xae')
+
+        self.failUnlessEqual(oauth.to_unicode_if_string(['\xae']), ['\xae'])
+        self.failUnlessEqual(oauth.to_unicode_if_string(':-)'), u':-)')
+        self.failUnlessEqual(oauth.to_unicode_if_string(u'\u00ae'), u'\u00ae')
+        self.failUnlessEqual(oauth.to_unicode_if_string('\xc2\xae'), u'\u00ae')
+
+    def test_to_utf8_optional_iterator(self):
+        self.failUnlessRaises(TypeError, oauth.to_utf8_optional_iterator, '\xae')
+        self.failUnlessRaises(TypeError, oauth.to_utf8_optional_iterator, ['\xae'])
+
+        self.failUnlessEqual(oauth.to_utf8_optional_iterator(':-)'), ':-)')
+        self.failUnlessEqual(oauth.to_utf8_optional_iterator(u'\u00ae'), '\xc2\xae')
+        self.failUnlessEqual(oauth.to_utf8_optional_iterator('\xc2\xae'), '\xc2\xae')
+        self.failUnlessEqual(oauth.to_utf8_optional_iterator(0), 0)
 
 class TestRequest(unittest.TestCase, ReallyEqualMixin):
     def test_setter(self):
@@ -303,6 +324,12 @@ class TestRequest(unittest.TestCase, ReallyEqualMixin):
         req = oauth.Request(method, url2)
         self.assertEquals(req.normalized_url, exp2)
         self.assertEquals(req.url, url2)
+
+        req = oauth.Request()
+        req.normalized_url = None
+        req.url = None
+        self.assertEquals(req.normalized_url, None)
+        self.assertEquals(req.url, None)
 
     def test_bad_url(self):
         request = oauth.Request()
@@ -934,6 +961,14 @@ class SignatureMethod_Bad(oauth.SignatureMethod):
         return "invalid-signature"
 
 
+class TestSignatureMethod(unittest.TestCase):
+    def test_NotImplementedError(self):
+        signature_method = oauth.SignatureMethod()
+        with pytest.raises(NotImplementedError):
+            signature_method.signing_base(None, None, None)
+        with pytest.raises(NotImplementedError):
+            signature_method.sign(None, None, None)
+
 class TestServer(unittest.TestCase):
     def setUp(self):
         url = "http://sp.example.com/"
@@ -994,6 +1029,25 @@ class TestServer(unittest.TestCase):
         self.assertEquals(parameters['bar'], 'blerg')
         self.assertEquals(parameters['foo'], 59)
         self.assertEquals(parameters['multi'], ['FOO','BAR'])
+
+        with pytest.raises(oauth.Error) as e:
+          server.verify_request(self.request, self.consumer, None)
+        self.assertTrue("Invalid signature. Expected signature base string:" in str(e))
+
+        oauth_timestamp_orig = self.request["oauth_timestamp"]
+        try:
+            self.request["oauth_timestamp"] = 0
+            with pytest.raises(oauth.Error) as e:
+                server.verify_request(self.request, None, None)
+                self.assertTrue("Expired timestamp: given" in str(e))
+        finally:
+            self.request["oauth_timestamp"] = oauth_timestamp_orig
+
+        del self.request["oauth_signature_method"]
+        with pytest.raises(oauth.Error) as e:
+            server.verify_request(self.request, None, None)
+        self.assertTrue("Signature method" in str(e))
+        self.assertTrue("not supported try one of the following:" in str(e))
 
     def test_build_authenticate_header(self):
         server = oauth.Server()
@@ -1227,6 +1281,15 @@ class TestClient(unittest.TestCase):
         """A test of a two-legged OAuth GET request."""
         resp, content = self._two_legged("GET")
         self.assertEquals(int(resp['status']), 200)
+
+    def test_request(self):
+        _hostprog_orig, urllib._hostprog = urllib._hostprog, re.compile('^/([^/?]*)(.*)$')
+        try:
+            client = oauth.Client(self.consumer, None)
+            with pytest.raises(httplib2.RelativeURIError):
+                client.request("http:/example/")
+        finally:
+            urllib._hostprog = _hostprog_orig
 
     @mock.patch('httplib2.Http.request')
     def test_multipart_post_does_not_alter_body(self, mockHttpRequest):
