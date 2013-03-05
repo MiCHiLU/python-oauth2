@@ -745,9 +745,6 @@ class Server(object):
 
         return signature_method
 
-    def _get_verifier(self, request):
-        return request.get_parameter('oauth_verifier')
-
     def _check_signature(self, request, consumer, token):
         timestamp, nonce = request._get_timestamp_nonce()
         self._check_timestamp(timestamp)
