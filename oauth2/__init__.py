@@ -413,29 +413,17 @@ class Request(dict):
     def to_url(self):
         """Serialize as a URL for a GET request."""
         base_url = urlparse.urlparse(self.url)
-        try:
-            query = base_url.query
-        except AttributeError:
-            # must be python <2.5
-            query = base_url[4]
+        query = base_url.query
         query = parse_qs(query)
         for k, v in self.items():
             query.setdefault(k, []).append(v)
-        
-        try:
-            scheme = base_url.scheme
-            netloc = base_url.netloc
-            path = base_url.path
-            params = base_url.params
-            fragment = base_url.fragment
-        except AttributeError:
-            # must be python <2.5
-            scheme = base_url[0]
-            netloc = base_url[1]
-            path = base_url[2]
-            params = base_url[3]
-            fragment = base_url[5]
-        
+
+        scheme = base_url.scheme
+        netloc = base_url.netloc
+        path = base_url.path
+        params = base_url.params
+        fragment = base_url.fragment
+
         url = (scheme, netloc, path, params,
                urllib.urlencode(query, True), fragment)
         return urlparse.urlunparse(url)
