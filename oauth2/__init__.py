@@ -111,6 +111,11 @@ def to_unicode_if_string(s):
         return s
 
 def to_utf8_if_string(s):
+    if not six.PY3:
+      try:
+        s = parse.unquote(s)
+      except AttributeError:
+        pass
     if isinstance(s, six.string_types):
         return to_utf8(s)
     else:
